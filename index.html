@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncy Ball Game</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('https://www.solarsystemscope.com/textures/download/2k_stars_milky_way.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            color: white;
+        }
+        canvas {
+            border: 2px solid #343a40;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .controls {
+            margin-top: 10px;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #adb5bd;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            margin-top: 10px;
+        }
+        .power-up {
+            color: yellow;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="controls d-none d-md-block">
+        <button id="jumpButton" class="btn btn-primary">Jump</button>
+        <button id="pauseButton" class="btn btn-warning">Pause</button>
+    </div>
+    <div id="scoreDisplay" class="mt-3 font-weight-bold">Score: 0</div>
+    <div class="progress">
+        <div id="boostProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <div id="gameOverScreen" class="d-none text-center">
+        <h2>Game Over!</h2>
+        <p id="finalScore"></p>
+        <button id="restartButton" class="btn btn-success">Restart</button>
+        <div class="footer">Game by Mueti Devs, Kenya</div>
+    </div>
+    <div id="tutorial" class="text-center">
+        <h3>How to Play</h3>
+        <p>Press the "Jump" button or the "Up Arrow" key to jump and avoid asteroids. Collect power-ups for bonuses!</p>
+        <button id="startButton" class="btn btn-primary">Start Game</button>
+    </div>
+    <audio id="backgroundMusic" loop>
+        <source src="https://www.bensound.com/bensound-music/bensound-creativeminds.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <audio id="jumpSound">
+        <source src="https://freesound.org/data/previews/256/256113_3263906-lq.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <audio id="collisionSound">
+        <source src="https://freesound.org/data/previews/256/256113_3263906-lq.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScore = document.getElementById('finalScore');
+        const restartButton = document.getElementById('restartButton');
+        const jumpButton = document.getElementById('jumpButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const startButton = document.getElementById('startButton');
+        const tutorial = document.getElementById('tutorial');
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const jumpSound = document.getElementById('jumpSound');
+        const collisionSound = document.getElementById('collisionSound');
+        const boostProgress = document.getElementById('boostProgress');
+
+        let ball = { x: 100, y: 200, radius: 15, dy: 0 };
+        let asteroids = [];
+        let powerUps = [];
+        let gravity = 0.5;
+        let jumpStrength = -10;
+        let gameOver = false;
+        let paused = false;
+        let asteroidSpeed = 2;
+        let score = 0;
+        let boostCharge = 0;
+
+        function createAsteroids() {
+            for (let i = 0; i < 10; i++) {
+                const isAirborne = Math.random() > 0.5;
+                const yPosition = isAirborne ? Math.random() * (canvas.height - 100) : canvas.height - 20;
+                asteroids.push({ x: canvas.width + i * 150, y: yPosition });
+            }
+        }
+
+        function createPowerUps() {
+            if (Math.random() < 0.1) { // 10% chance to spawn a power-up
+                powerUps.push({ x: canvas.width, y: Math.random() * (canvas.height - 100) });
+            }
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawAsteroids() {
+            ctx.fillStyle = 'gray';
+            asteroids.forEach(asteroid => {
+                ctx.beginPath();
+                ctx.arc(asteroid.x, asteroid.y, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function drawPowerUps() {
+            ctx.fillStyle = 'yellow';
+            powerUps.forEach(powerUp => {
+                ctx.beginPath();
+                ctx.arc(powerUp.x, powerUp.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function moveAsteroids() {
+            asteroids.forEach(asteroid => {
+                asteroid.x -= asteroidSpeed;
+            });
+
+            if (asteroids[0].x + 10 < 0) {
+                asteroids.shift();
+                const isAirborne = Math.random() > 0.5;
+                const yPosition = isAirborne ? Math.random() * (canvas.height - 100) : canvas.height - 20;
+                asteroids.push({ x: canvas.width, y: yPosition });
+                score += 0.5;
+                scoreDisplay.textContent = `Score: ${score}`;
+            }
+        }
+
+        function movePowerUps() {
+            powerUps.forEach(powerUp => {
+                powerUp.x -= asteroidSpeed;
+            });
+
+            powerUps = powerUps.filter(powerUp => powerUp.x + 8 > 0); // Remove off-screen power-ups
+        }
+
+        function moveBall() {
+            ball.dy += gravity;
+            ball.y += ball.dy;
+
+            if (ball.y + ball.radius > canvas.height) {
+                ball.y = canvas.height - ball.radius;
+                ball.dy = 0;
+            }
+
+            if (ball.y - ball.radius < 0) {
+                ball.y = ball.radius;
+                ball.dy = 0;
+            }
+        }
+
+        function checkCollision() {
+            asteroids.forEach(asteroid => {
+                if (ball.x + ball.radius > asteroid.x && ball.x - ball.radius < asteroid.x + 10 &&
+                    ball.y + ball.radius > asteroid.y - 10 && ball.y - ball.radius < asteroid.y + 10) {
+                    collisionSound.play();
+                    gameOver = true;
+                }
+            });
+
+            powerUps.forEach((powerUp, index) => {
+                if (ball.x + ball.radius > powerUp.x && ball.x - ball.radius < powerUp.x + 8 &&
+                    ball.y + ball.radius > powerUp.y - 8 && ball.y - ball.radius < powerUp.y + 8) {
+                    score += 5; // Bonus for collecting power-up
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    powerUps.splice(index, 1); // Remove collected power-up
+                }
+            });
+        }
+
+        function updateBoost() {
+            boostCharge += 0.0167;
+            boostProgress.style.width = `${(boostCharge / 3) * 100}%`;
+            boostProgress.setAttribute('aria-valuenow', (boostCharge / 3) * 100);
+
+            if (boostCharge >= 3) {
+                score += 30;
+                scoreDisplay.textContent = `Score: ${score}`;
+                boostCharge = 0;
+            }
+        }
+
+        function gameLoop() {
+            if (paused || gameOver) {
+                if (gameOver) {
+                    gameOverScreen.classList.remove('d-none');
+                    finalScore.textContent = `Your Score: ${score}`;
+                    backgroundMusic.pause();
+                }
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBall();
+            drawAsteroids();
+            drawPowerUps();
+            moveBall();
+            moveAsteroids();
+            movePowerUps();
+            checkCollision();
+            updateBoost();
+            createPowerUps();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowUp') {
+                ball.dy = jumpStrength;
+                jumpSound.play();
+            }
+        });
+
+        jumpButton.addEventListener('click', () => {
+            ball.dy = jumpStrength;
+            jumpSound.play();
+        });
+
+        pauseButton.addEventListener('click', () => {
+            paused = !paused;
+            if (!paused) gameLoop();
+        });
+
+        restartButton.addEventListener('click', () => {
+            gameOver = false;
+            score = 0;
+            scoreDisplay.textContent = `Score: ${score}`;
+            asteroids = [];
+            powerUps = [];
+            createAsteroids();
+            ball.y = 200;
+            ball.dy = 0;
+            boostCharge = 0;
+            boostProgress.style.width = '0%';
+            gameOverScreen.classList.add('d-none');
+            backgroundMusic.play();
+            gameLoop();
+        });
+
+        startButton.addEventListener('click', () => {
+            tutorial.classList.add('d-none');
+            backgroundMusic.play();
+            createAsteroids();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
