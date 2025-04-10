@@ -100,6 +100,15 @@
         let score = 0;
         let boostCharge = 0;
 
+        // Adjust canvas size to fit the screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth * 0.9; // 90% of screen width
+            canvas.height = window.innerHeight * 0.6; // 60% of screen height
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // Initial resize
+
         function createAsteroids() {
             for (let i = 0; i < 10; i++) {
                 const isAirborne = Math.random() > 0.5;
