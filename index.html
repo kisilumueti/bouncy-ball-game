@@ -73,6 +73,8 @@
             }
         }
     </style>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
@@ -323,6 +325,12 @@
             createAsteroids();
             gameLoop();
         });
+
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("./service-worker.js")
+                .then(() => console.log("Service Worker Registered"))
+                .catch((error) => console.error("Service Worker Registration Failed:", error));
+        }
     </script>
 </body>
 </html>
