@@ -65,6 +65,13 @@
                 padding: 10px;
             }
         }
+
+        /* Hide controls on touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            .controls {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -135,6 +142,12 @@
 
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas(); // Initial resize
+
+        // Detect touch events for jumping
+        canvas.addEventListener('touchstart', () => {
+            ball.dy = jumpStrength;
+            jumpSound.play();
+        });
 
         function createAsteroids() {
             for (let i = 0; i < 10; i++) {
